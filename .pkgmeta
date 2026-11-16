@@ -1,0 +1,25 @@
+# BigWigs packager: the KutzUI download (KutzUI + KutzUI_Options + KutzUI_Monitor).
+# These three are one release: Options and Monitor need KutzUI (## Dependencies) and share its
+# version number. Built by .github/workflows/release-addons.yml on a vX.Y.Z tag.
+package-as: KutzUI
+
+move-folders:
+  KutzUI/KutzUI: KutzUI
+  KutzUI/KutzUI_Options: KutzUI_Options
+  KutzUI/KutzUI_Monitor: KutzUI_Monitor
+
+ignore:
+  - KutzInventory
+  - companion
+  - tools
+  - schema
+  - docs
+  - export
+  - References
+  - LICENSES
+  - REUSE.toml
+  - THIRD-PARTY-NOTICES.md
+  - README.md
+  - LICENSE
+
+enable-nolib-creation: no

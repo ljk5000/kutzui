@@ -1,0 +1,18 @@
+# Other people's addons saved for reference - not mine to republish
+References/
+
+# offline test tooling dependencies (npm ci in tools/). The lockfile is committed so CI installs the pinned versions.
+node_modules/
+
+# scratch images and logs
+*.png
+*.jpg
+*.log
+*.tmp
+
+# Local exports of character data. Never commit these.
+export/
+*.pending.json
+
+# the taskbar shortcut holds this PC's paths
+*.lnk

@@ -1,0 +1,15 @@
+## Interface: 16001
+## Title: KutzUI - Settings
+## Notes: The /kutz settings window for Kutz UI. Loads only when you open it.
+## X-Category: KutzUI
+## Author: ljk5000
+## Version: 0.43.0
+## Dependencies: KutzUI
+## LoadOnDemand: 1
+
+Menu.lua
+PagesUnits.lua
+PagesText.lua
+PagesInterface.lua
+PagesGame.lua
+PagesAddon.lua

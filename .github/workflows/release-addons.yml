@@ -1,0 +1,80 @@
+# The KutzUI download. On every push and pull request: build the zip and check them (layout, .toc
+# files, dependencies, licence, and a fake-game load of the extracted folders).
+# On a vX.Y.Z tag, also publish KutzUI-X.Y.Z.zip (KutzUI + KutzUI_Options + KutzUI_Monitor) as a release.
+# The tag must match KutzUI/KutzUI.toc's ## Version (tools/build_addon_zips.sh refuses otherwise).
+name: Addon release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  # BigWigs packager v2.6.1, pinned to its commit.
+  PACKAGER_URL: https://raw.githubusercontent.com/BigWigsMods/packager/e50a250f8705041e40f2fa1ddcb280a686d65aa0/release.sh
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the packager writes a changelog from the history
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+      - name: Install tool dependencies
+        working-directory: tools
+        run: npm ci
+      - name: Offline checks
+        working-directory: tools
+        run: node check_all.js ../KutzUI
+      - name: Get the packager
+        run: curl -fsSL -o "$RUNNER_TEMP/release.sh" "$PACKAGER_URL"
+      - name: Build and check the zips
+        env:
+          PACKAGER: ${{ runner.temp }}/release.sh
+          TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+        run: bash tools/build_addon_zips.sh dist "$TAG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: addon-zips
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write       # build attestation: `gh attestation verify <zip> -R ljk5000/kutzui`
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: addon-zips
+          path: dist
+      # Provenance for the zip. GitHub stores attestations for a public repository;
+      # this step is skipped while the repository is private and runs on the next tagged
+      # release after it is public. This job's permissions (above) include
+      # id-token: write and attestations: write, which the action requires.
+      # Verify a published zip with: gh attestation verify <zip> -R ljk5000/kutzui
+      - if: ${{ !github.event.repository.private }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/*.zip
+      - name: Publish the download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="KutzUI ${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/SHA256SUMS.txt \
+            --verify-tag --title "$title" --generate-notes

@@ -1,0 +1,24 @@
+# Offline checks. Does not create release tags: tag from KutzUI/KutzUI.toc with
+# tools/tag_release.js after the version commit (see the README, "Rolling back").
+name: Offline checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+      - name: Install tool dependencies
+        working-directory: tools
+        run: npm ci
+      - name: Syntax, limits, typos, and fake-game runs
+        working-directory: tools
+        run: node check_all.js ../KutzUI

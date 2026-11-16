@@ -1,0 +1,48 @@
+## Interface: 16001
+## Title: KutzUI
+## Notes: Health/power text, mirrored player/target layout, cast bars with icon and spell name, a game-wide font, a readable combat log, short color-coded chat tags, Enter-opens-main-chat, and one settings window (/kutz).
+## Author: ljk5000
+## Version: 0.43.0
+## SavedVariables: KutzUIDB
+
+Core.lua
+Common.lua
+Profiles.lua
+UnitText.lua
+UnitBars.lua
+PartyBars.lua
+UIFontList.lua
+UIFont.lua
+CombatLog.lua
+Names.lua
+Movers.lua
+Keybinds.lua
+ActionBars.lua
+Minimap.lua
+MapCoords.lua
+TooltipTweaks.lua
+TooltipExtras.lua
+TooltipCompare.lua
+DamageMeter.lua
+FpsReadout.lua
+Convenience.lua
+CraftingTime.lua
+SubCraft.lua
+LowHealthBlink.lua
+BuyAmount.lua
+ItemLevel.lua
+JunkHint.lua
+Nameplates.lua
+PartyTargets.lua
+ChatTags.lua
+Chat.lua
+ChatCopy.lua
+Grid.lua
+CombatFormat.lua
+CombatLogView.lua
+CombatPresets.lua
+KutzLogFeed.lua
+KutzLog.lua
+Windows.lua
+Layout.lua
+## X-Category: KutzUI
