@@ -20,6 +20,8 @@ ignore:
   - REUSE.toml
   - THIRD-PARTY-NOTICES.md
   - README.md
+  - CONTRIBUTING.md
+  - SECURITY.md
   - LICENSE
 
 enable-nolib-creation: no
