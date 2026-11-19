@@ -272,6 +272,21 @@ function Page:Note(text, lines)
     return fs
 end
 
+-- Search reads these. indexingKey is the page being built; tabLabels is filled when the sidebar is.
+local optionIndex = {}
+local indexingKey
+local tabLabels = {}
+
+local function NoteOption(page, label, tip)
+    if not indexingKey or type(label) ~= "string" or label == "" then return end
+    if label:match("^[%+%<%>%-]+$") then return end
+    optionIndex[#optionIndex + 1] = {
+        label = label, tip = tip or "", page = indexingKey,
+        pageName = tabLabels[indexingKey] or "",
+        sub = page and page.buildingSub or nil,
+    }
+end
+
 function Page:Check(label, get, set, tip)
     local x, y, w = self:X(), self:Y(), self.colW
     local b = CreateFrame("Button", nil, self.frame)
@@ -291,6 +306,7 @@ function Page:Check(label, get, set, tip)
     local page = self
     b:SetScript("OnClick", function() set(not get()); page:Refresh() end)
     Tip(b, tip)
+    NoteOption(self, label, tip)
     self.refreshers[#self.refreshers + 1] = function() setSwitch(get() and true or false) end
     self:Advance(28)
     return b
@@ -316,6 +332,7 @@ function Page:CheckGrid(items, perRow)
         fs:SetText(item.label)
         b:SetScript("OnClick", function() item.set(not item.get()); page:Refresh() end)
         Tip(b, item.tip)
+        NoteOption(self, item.label, item.tip)
         self.refreshers[#self.refreshers + 1] = function() setSwitch(item.get() and true or false) end
     end
     self:Advance(math.ceil(#items / perRow) * 28 + 2)
@@ -333,6 +350,7 @@ function Page:Slider(label, lo, hi, get, set, opts)
     title:SetWidth(w - 70)
     title:SetWordWrap(false)
     title:SetText(label)
+    NoteOption(self, label, opts.tip)
     -- the number is a box: click it, type a value, press Enter (Esc puts the old one back)
     local value = CreateFrame("EditBox", nil, f)
     value:SetSize(76, 18)
@@ -475,6 +493,7 @@ function Page:Buttons(list)
         local b = Btn(self.frame, spec.text, width, 24, function() spec.click(); page:Refresh() end)
         b:SetPoint("TOPLEFT", x, y)
         Tip(b, spec.tip)
+        NoteOption(page, spec.text, spec.tip)
         x = x + width + 8
     end
     self:Advance(34)
@@ -489,6 +508,7 @@ function Page:Cycler(label, items, getKey, setKey, opts)
     local title = Text(f, 11, "LEFT", GREY)
     title:SetPoint("TOPLEFT", x, y)
     title:SetText(label)
+    NoteOption(self, label, opts.tip)
     local nameText = Text(f, 13, "LEFT", WHITE)
     nameText:SetPoint("TOPLEFT", x, y - 17)
     nameText:SetWidth(w - 130)
@@ -599,6 +619,7 @@ end
 -- Sub-tabs: split a long page into panes with a row of small tabs under the title.
 -- p:SubTab("key", "Label") starts a pane; the controls added after it (until the next SubTab) are in it.
 function Page:SubTab(key, label)
+    self.buildingSub = key
     if not self.subs then
         self.main = self.frame
         self.subs = {}
@@ -682,9 +703,20 @@ local function TabTextColor(key, on)
     if b.icon then b.icon:SetVertexColor(color[1], color[2], color[3]) end
 end
 
+local function BuildPage(key)
+    if pages[key] or not builders[key] then return end
+    indexingKey = key
+    builders[key]()
+    indexingKey = nil
+    local name = tabLabels[key]
+    if name then
+        optionIndex[#optionIndex + 1] = { label = name, tip = "", page = key, pageName = name, isPage = true }
+    end
+end
+
 local function ShowTab(key)
     currentTab = key
-    if not pages[key] and builders[key] then builders[key]() end
+    BuildPage(key)
     for k, p in pairs(pages) do (p.main or p.frame):SetShown(k == key) end     -- (a page with sub-tabs keeps its whole-page frame in .main)
     for k, b in pairs(tabButtons) do
         local on = (k == key)
@@ -706,12 +738,14 @@ function ns.UpdateMenuStatus(pending)
 end
 
 local sidebarY = -10
+local sidebarHeaders = {}
 
 -- a small caps heading that groups the tabs under it
 local function AddHeader(label)
     local t = Text(window.sidebar, 10, "LEFT", DIM)
     t:SetPoint("TOPLEFT", 16, sidebarY - 8)
     t:SetText(string.upper(label))
+    sidebarHeaders[#sidebarHeaders + 1] = t
     sidebarY = sidebarY - 24
 end
 
@@ -734,6 +768,7 @@ local function AddTab(key, label)
     b.text:SetPoint("RIGHT", -10, 0)
     b.text:SetWordWrap(false)
     b.text:SetText(label)
+    tabLabels[key] = label
     b:SetScript("OnClick", function() ShowTab(key) end)
     tabButtons[key] = b
     tabKeys[#tabKeys + 1] = key
@@ -786,6 +821,126 @@ ns._opt = M
 ---------------------------------------------------------------------------
 -- Build the window (first time it is opened)
 ---------------------------------------------------------------------------
+local SEARCH_ROWS = 12
+
+local function Lower(s)
+    return type(s) == "string" and s:lower() or ""
+end
+
+local function FindOptions(query)
+    local q = Lower(strtrim(query or ""))
+    if q == "" then return nil end
+    for _, key in ipairs(tabKeys) do BuildPage(key) end
+    local hits = {}
+    for _, opt in ipairs(optionIndex) do
+        local label = Lower(opt.label)
+        local score
+        if label == q then score = 0
+        elseif #q <= #label and label:sub(1, #q) == q then score = 1
+        elseif label:find(q, 1, true) then score = 2
+        elseif opt.tip ~= "" and Lower(opt.tip):find(q, 1, true) then score = 4
+        end
+        if score then hits[#hits + 1] = { opt = opt, score = score } end
+    end
+    table.sort(hits, function(a, b)
+        if a.score ~= b.score then return a.score < b.score end
+        if a.opt.isPage ~= b.opt.isPage then return not a.opt.isPage end
+        return a.opt.label < b.opt.label
+    end)
+    return hits
+end
+
+local function InstallSidebarSearch(sidebar)
+    local eb, holder = MakeEditBox(sidebar, SIDEBAR_W - 16)
+    holder:SetPoint("TOPLEFT", 8, -8)
+    local placeholder = Text(holder, 11, "LEFT", DIM)
+    placeholder:SetPoint("LEFT", 6, 0)
+    placeholder:SetText("Search")
+
+    local resultHost = CreateFrame("Frame", nil, sidebar)
+    resultHost:SetPoint("TOPLEFT", 0, -36)
+    resultHost:SetPoint("BOTTOMRIGHT")
+    resultHost:Hide()
+    local empty = Text(resultHost, 11, "LEFT", GREY)
+    empty:SetPoint("TOPLEFT", 12, -8)
+    empty:SetWidth(SIDEBAR_W - 24)
+    empty:SetWordWrap(true)
+    empty:SetText("No matching setting")
+    empty:Hide()
+
+    local function OpenOption(opt)
+        eb:SetText("")
+        eb:ClearFocus()
+        ShowTab(opt.page)
+        local p = pages[opt.page]
+        if opt.sub and p and p.ShowSub then p:ShowSub(opt.sub) end
+    end
+
+    local rows = {}
+    for i = 1, SEARCH_ROWS do
+        local b = CreateFrame("Button", nil, resultHost)
+        b:SetSize(SIDEBAR_W, 40)
+        b:SetPoint("TOPLEFT", 0, -(i - 1) * 40)
+        b.hl = Fill(b, "HIGHLIGHT", 1, 1, 1, 0.06)
+        b.hl:SetAllPoints()
+        b.title = Text(b, 12, "LEFT", WHITE)
+        b.title:SetPoint("TOPLEFT", 12, -4)
+        b.title:SetPoint("RIGHT", -8, 0)
+        b.title:SetWordWrap(false)
+        b.where = Text(b, 10, "LEFT", GREY)
+        b.where:SetPoint("BOTTOMLEFT", 12, 4)
+        b.where:SetPoint("RIGHT", -8, 0)
+        b.where:SetWordWrap(false)
+        b:SetScript("OnClick", function(self) if self._opt then OpenOption(self._opt) end end)
+        b:SetScript("OnEnter", function(self)
+            if not (self._opt and self._opt.tip ~= "") then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(self._opt.tip, 1, 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        b:Hide()
+        rows[i] = b
+    end
+
+    local function ApplySearch(text)
+        local found = FindOptions(text)
+        local searching = found ~= nil
+        for _, h in ipairs(sidebarHeaders) do h:SetShown(not searching) end
+        for _, b in pairs(tabButtons) do b:SetShown(not searching) end
+        resultHost:SetShown(searching)
+        if not searching then
+            for _, b in ipairs(rows) do b._opt = nil; b:Hide() end
+            return
+        end
+        local n = math.min(SEARCH_ROWS, #found)
+        empty:SetShown(n == 0)
+        for i = 1, SEARCH_ROWS do
+            local b, hit = rows[i], found[i]
+            if i <= n then
+                b._opt = hit.opt
+                b.title:SetText(hit.opt.label)
+                b.where:SetText(hit.opt.isPage and "Open this screen" or (hit.opt.pageName or ""))
+                b:Show()
+            else
+                b._opt = nil
+                b:Hide()
+            end
+        end
+    end
+
+    eb:SetScript("OnTextChanged", function(self)
+        local text = self:GetText() or ""
+        placeholder:SetShown(text == "")
+        ApplySearch(text)
+    end)
+    eb:SetScript("OnEscapePressed", function(self)
+        self:SetText("")
+        self:ClearFocus()
+    end)
+    Tip(holder, "Find a setting by name. Click a result to open its screen.")
+end
+
 local function CreateWindow()
     L = ns.L
     DB = KutzUIDB
@@ -858,6 +1013,9 @@ local function CreateWindow()
     for _, k in ipairs(needed) do
         if not builders[k] then error("KutzUI settings is missing the " .. k .. " page") end
     end
+
+    InstallSidebarSearch(sidebar)
+    sidebarY = -36
 
     AddHeader("Setup")
     AddTab("package", "KutzUI package")

@@ -48,6 +48,19 @@ function ns.ResetABSettings()
     if not KutzUIDB then return end
     for name in pairs(DEFAULTS) do KutzUIDB[name] = nil end
     KutzUIDB.abScale, KutzUIDB.abBarScale = nil, nil
+    KutzUIDB.abXpW, KutzUIDB.abXpH, KutzUIDB.abXpX, KutzUIDB.abXpY = nil, nil, nil, nil
+    KutzUIDB.abXpBelow, KutzUIDB.abXpGrow = nil, nil
+    dirty = true
+end
+
+function ns.ABNumber(name)
+    local v = KutzUIDB and KutzUIDB[name]
+    return type(v) == "number" and v or 0
+end
+
+function ns.SetABNumber(name, value)
+    if not KutzUIDB then return end
+    KutzUIDB[name] = (value ~= 0) and value or nil
     dirty = true
 end
 
@@ -96,21 +109,176 @@ end
 
 local baseScale, appliedScale = {}, {}     -- frame -> Blizzard's own scale / the scale we last set
 
+local function ScaleTo(f, pct)
+    if not (f and f.GetScale and f.SetScale) then return end
+    local cur = f:GetScale() or 1
+    if appliedScale[f] == nil or math.abs(cur - appliedScale[f]) > 0.001 then
+        baseScale[f] = cur                            -- something else set a scale: start from that
+    end
+    local target = (baseScale[f] or 1) * pct / 100
+    if math.abs(cur - target) > 0.001 then f:SetScale(target) end
+    appliedScale[f] = f:GetScale()
+end
+
+-- true when `frame` sits inside `ancestor`, so scaling both would scale it twice
+local function Inside(frame, ancestor)
+    if not (frame and ancestor and frame.GetParent) then return false end
+    local p = frame:GetParent()
+    while p do
+        if p == ancestor then return true end
+        if p == UIParent or not p.GetParent then return false end
+        p = p:GetParent()
+    end
+end
+
 local function ApplyScale()
     for _, bar in ipairs(ns.AB_BARS) do
-        local f = _G[bar.key]
-        if f and f.GetScale then
-            local cur = f:GetScale()
-            if appliedScale[f] == nil or math.abs(cur - appliedScale[f]) > 0.001 then
-                baseScale[f] = cur                            -- something else set a scale: start from that
+        ScaleTo(_G[bar.key], ns.ABScaleFor(bar.key))
+    end
+end
+
+---------------------------------------------------------------------------
+-- Experience bar size, position, and the bottom stack.
+-- Width / height / nudge apply on their own. "Under the action bars" packs the
+-- bottom bars tight and puts the experience bar beneath them, scaled with the
+-- main bar. "Height follows the action bars" only thickens the experience bar
+-- when the action bars get taller; it does not move anything.
+---------------------------------------------------------------------------
+local FindXpBar
+local STACK = { "MainActionBar", "MultiBarBottomLeft", "MultiBarBottomRight", "StanceBar", "PetActionBar" }
+local STACK_GAP = 2
+local pristineH                         -- the game's own bar height, read once before we change it
+local homePoint = {}                    -- frame -> where it sat before we moved it
+local didStack = false
+
+local function ScreenSpan(frame)
+    if not (frame and frame.GetWidth) then return 0 end
+    local parentScale = (UIParent and UIParent.GetScale and UIParent:GetScale()) or 1
+    if not parentScale or parentScale == 0 then parentScale = 1 end
+    return (frame:GetWidth() or 0) * ((frame.GetScale and frame:GetScale()) or 1) / parentScale
+end
+
+local function ScreenHeight(frame)
+    if not (frame and frame.GetHeight) then return 0 end
+    local parentScale = (UIParent and UIParent.GetScale and UIParent:GetScale()) or 1
+    if not parentScale or parentScale == 0 then parentScale = 1 end
+    return (frame:GetHeight() or 0) * ((frame.GetScale and frame:GetScale()) or 1) / parentScale
+end
+
+local function AtPoint(frame, point, rel, relPoint, x, y)
+    if not frame.GetNumPoints or frame:GetNumPoints() ~= 1 then return false end
+    local p, r, rp, ox, oy = frame:GetPoint(1)
+    return p == point and r == rel and rp == relPoint and ox and oy
+        and math.abs(ox - x) < 0.5 and math.abs(oy - y) < 0.5
+end
+
+local function RememberHome(frame)
+    if homePoint[frame] or not frame.GetNumPoints or frame:GetNumPoints() ~= 1 then return end
+    local p, rel, rp, x, y = frame:GetPoint(1)
+    if p then homePoint[frame] = { p, rel, rp, x, y } end
+end
+
+local function PlaceBottom(frame, x, y)
+    if not (frame and frame.SetPoint) then return end
+    RememberHome(frame)
+    if AtPoint(frame, "BOTTOM", UIParent, "BOTTOM", x, y) then return end
+    frame:ClearAllPoints()
+    frame:SetPoint("BOTTOM", UIParent, "BOTTOM", x, y)
+end
+
+local function RestoreHomes()
+    for frame, spot in pairs(homePoint) do
+        if frame.ClearAllPoints and frame.SetPoint then
+            frame:ClearAllPoints()
+            frame:SetPoint(spot[1], spot[2], spot[3], spot[4], spot[5])
+        end
+        homePoint[frame] = nil
+    end
+end
+
+local function PixelSize(frame, width, height)
+    if not frame then return end
+    local scale = (frame.GetScale and frame:GetScale()) or 1
+    if not scale or scale < 0.01 then scale = 1 end
+    if width and frame.SetWidth then frame:SetWidth(width / scale) end
+    if height and frame.SetHeight then frame:SetHeight(height / scale) end
+end
+
+local function ApplyXpBar()
+    local under = ns.ABOption("abXpBelow")
+    local grow = ns.ABOption("abXpGrow")
+    local x = ns.ABNumber("abXpX")
+    local nudgeY = ns.ABNumber("abXpY")
+    local setW = ns.ABNumber("abXpW")
+    local setH = ns.ABNumber("abXpH")
+    local mgr = _G.StatusTrackingBarManager
+    local bar = FindXpBar()
+    if bar and not pristineH and bar.GetHeight then
+        local h = bar:GetHeight()
+        if h and h > 1 then pristineH = h end
+    end
+
+    local baseH = setH > 0 and setH or (pristineH or 12)
+    local height
+    if under or grow then
+        height = math.max(4, math.floor(baseH * ns.ABScaleFor("MainActionBar") / 100 + 0.5))
+    elseif setH > 0 then
+        height = setH
+    end
+
+    local width
+    if under then
+        local span = ScreenSpan(_G.MainActionBar)
+        width = setW > 0 and math.floor(setW * ns.ABScaleFor("MainActionBar") / 100 + 0.5) or span
+        if width and width < 1 then width = nil end
+    elseif setW > 0 then
+        width = setW
+    end
+
+    local function Paint(target)
+        if not target then return end
+        if width then PixelSize(target, width, nil) end
+        if height then PixelSize(target, nil, height) end
+    end
+    if not height and pristineH and bar and bar.GetHeight and bar:GetHeight() ~= pristineH then
+        PixelSize(bar, nil, pristineH)
+    end
+    Paint(bar)
+    if mgr and mgr ~= bar then
+        Paint(mgr)
+        if mgr.barContainers and height then
+            for _, container in ipairs(mgr.barContainers) do
+                if type(container) == "table" and container.SetHeight then PixelSize(container, width, height) end
             end
-            local target = baseScale[f] * ns.ABScaleFor(bar.key) / 100
-            if math.abs(cur - target) > 0.001 then
-                f:SetScale(target)
-            end
-            appliedScale[f] = f:GetScale()
         end
     end
+
+    if not under then
+        if didStack then RestoreHomes(); didStack = false end
+        if mgr and (x ~= 0 or nudgeY ~= 0) then PlaceBottom(mgr, x, nudgeY) end
+        return
+    end
+
+    -- Bottom of the screen, then the experience bar, then each shown bar just above it.
+    local y = 4 + nudgeY
+    local barH = height or (bar and ScreenHeight(bar)) or baseH
+    if mgr then PlaceBottom(mgr, x, y) end
+    y = y + barH + STACK_GAP
+    for _, name in ipairs(STACK) do
+        local frame = _G[name]
+        if frame and frame.IsShown and frame:IsShown() and frame ~= mgr and not Inside(frame, mgr) then
+            local skip = false
+            for _, other in ipairs(STACK) do
+                local parent = _G[other]
+                if parent and parent ~= frame and Inside(frame, parent) then skip = true end
+            end
+            if not skip then
+                PlaceBottom(frame, x, y)
+                y = y + math.max(1, ScreenHeight(frame)) + STACK_GAP
+            end
+        end
+    end
+    didStack = true
 end
 
 ---------------------------------------------------------------------------
@@ -167,7 +335,7 @@ local function Commas(n)
     return s
 end
 
-local function FindXpBar()
+function FindXpBar()
     local mgr, info = _G.StatusTrackingBarManager, _G.StatusTrackingBarInfo
     local want = info and info.BarsEnum and info.BarsEnum.Experience
     if not (mgr and want and mgr.barContainers) then return nil end
@@ -199,6 +367,8 @@ local function UpdateXpText()
         xpFrame:SetPoint("CENTER", bar, "CENTER", 0, -1)
         xpFrame:SetFrameLevel(bar:GetFrameLevel() + 30)
     end
+    local barW = bar.GetWidth and bar:GetWidth()
+    if barW and barW > 1 and math.abs((xpFrame:GetWidth() or 0) - barW) > 1 then xpFrame:SetWidth(barW) end
     local size = ns.ABOption("abXpSize")
     if xpFrame.size ~= size then
         xpFrame.size = size
@@ -265,7 +435,7 @@ ev:SetScript("OnUpdate", function(_, elapsed)
         lockDirty, dirty = false, false
         pcall(ApplyLock)
     end
-    if not InCombatLockdown() then pcall(ApplyScale) end
+    if not InCombatLockdown() then pcall(ApplyScale); pcall(ApplyXpBar) end
 end)
 
 ns.RegisterDebug(function()

@@ -11,7 +11,7 @@
 --   Frame time     how long each frame took, as a histogram, and every hitch of 100 ms or more
 --                  (with whether you were in combat and, if CPU profiling is on, the busiest addon).
 --   Memory         per addon right now, and how fast each one is growing (a leak shows as steady
---                  growth), from the log Core.lua already keeps.
+--                  growth of what is left after garbage collection), from the log Core.lua already keeps.
 --   CPU            per addon, in ms of work per second. The game only measures this while its script
 --                  profiling switch is on:  /kutz mon cpu on  then /reload  (it slows the game a little,
 --                  so switch it off again when you are done:  /kutz mon cpu off).
@@ -342,26 +342,35 @@ local function KB(kb)
 end
 local function OneLine(s) return (tostring(s):gsub("[\r\n]+", " ")) end
 
--- KB per hour each addon is growing by (least squares over this session's memory notes), or nil if too little data
+-- KB per hour each addon is growing by, or nil if too little data.
+-- An addon's memory includes garbage the collector has not freed yet, so a busy addon zigzags: up by several MB,
+-- back down after a collection, up again. A straight line through every note follows wherever the session happened
+-- to end in that zigzag (KutzInventory, holding a steady 32 MB, read +850 KB an hour that way). So growth compares
+-- floors instead: the lowest note in the session's second half against the lowest in its first half, which is what
+-- the addon still holds after a collection. A real leak raises the floor; garbage only raises the peaks.
+-- Each half needs a few notes (one every 5 minutes) to catch a low point, hence MIN_GROWTH_SPAN.
+local MIN_GROWTH_SPAN = 2400
 local function Growth()
     local log, pts = KutzUIDB.memLog, {}
     if type(log) ~= "table" then return nil end
     for _, s in ipairs(log) do if (s.t or 0) >= cur.t0 and type(s.a) == "table" then pts[#pts + 1] = s end end
     if #pts < 2 then return nil end
-    local span = pts[#pts].t - pts[1].t
-    if span < 600 then return nil end
-    local t0, out = pts[1].t, {}
+    local first, span = pts[1].t, pts[#pts].t - pts[1].t
+    if span < MIN_GROWTH_SPAN then return nil end
+    local mid, out = first + span / 2, {}
     for name in pairs(pts[#pts].a) do
-        local n, sx, sy, sxx, sxy = 0, 0, 0, 0, 0
+        local early, late
         for _, s in ipairs(pts) do
             local y = s.a[name]
-            if y then
-                local x = (s.t - t0) / 3600
-                n, sx, sy, sxx, sxy = n + 1, sx + x, sy + y, sxx + x * x, sxy + x * y
+            if type(y) == "number" then
+                if s.t <= mid then
+                    if not early or y < early then early = y end
+                elseif not late or y < late then
+                    late = y
+                end
             end
         end
-        local den = n * sxx - sx * sx
-        if n >= 2 and den > 0 then out[name] = (n * sxy - sx * sy) / den end
+        if early and late then out[name] = (late - early) / (span / 2 / 3600) end
     end
     return out, span
 end
@@ -468,7 +477,7 @@ function Report()
             r.grow and (KB(r.grow)) or "-",
             r.cpuAvg and string.format("%.2f", r.cpuAvg) or "-", r.cpuPeak and string.format("%.1f", r.cpuPeak) or "-"))
     end
-    if not growth then L("  (memory growth needs about 10 minutes of notes; one is taken every 5 minutes)") end
+    if not growth then L("  (memory growth needs about 40 minutes of notes; one is taken every 5 minutes)") end
     if profiling then L("  CPU is in ms of work per second; 1 ms/s is about 0.1% of one core. Averaged over " .. Dur(cpuSpan) .. ".") end
     L()
 

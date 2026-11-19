@@ -56,7 +56,7 @@ local function BuildActionBarsPage()
             function() return ns.ABScaleAll() end,
             function(v) ns.SetABScaleAll(v) end,
             { wheel = 5, fmt = function(v) return v .. "%" end,
-              tip = "Makes every action bar bigger or smaller. A bar keeps its place by its anchor, so you may want to nudge bars in Edit Mode afterwards. Changes in combat apply when combat ends." })
+              tip = "Makes every action bar bigger or smaller. A bar keeps its place by its anchor, so you may want to nudge bars in Edit Mode afterwards. Changes in combat apply when combat ends. The experience bar has its own size and position below." })
         local bars = {}
         for _, bar in ipairs(ns.AB_BARS) do
             if _G[bar.key] then bars[#bars + 1] = bar end
@@ -84,6 +84,35 @@ local function BuildActionBarsPage()
             "\"Mouse Button 4\" becomes \"M4\" (and mouse wheel becomes MwU / MwD) so the label fits. Turning it off needs a /reload to take effect.")
     else
         p:Note("The short key names module is switched off (UI features tab).", 2)
+    end
+    if ns.Enabled("actionbars") then
+        p:Section("Experience bar shape")
+        p:Check("Put the XP bar under the action bars",
+            function() return ns.ABOption("abXpBelow") end,
+            function(v) ns.SetABOption("abXpBelow", v and true or false) end,
+            "Stacks the bottom action bars close together and puts the experience bar underneath the whole group. The group uses the action bar size, so the experience bar grows when those bars do. The sliders still resize and nudge it.")
+        p:Check("XP bar height follows the action bars",
+            function() return ns.ABOption("abXpGrow") end,
+            function(v) ns.SetABOption("abXpGrow", v and true or false) end,
+            "When the action bars get taller, the experience bar gets taller by the same amount. This only changes its height. It does not move the bars, and it is separate from the size sliders and from the switch above.")
+        p:Slider("XP bar width", 0, 1600,
+            function() return ns.ABNumber("abXpW") end,
+            function(v) ns.SetABNumber("abXpW", v) end,
+            { wheel = 10, fmt = function(v) return v == 0 and "game's own" or (v .. " px") end,
+              tip = "Width of the experience bar in pixels. 0 leaves the game's own width, unless the bar is under the action bars, where 0 matches the main bar." })
+        p:Slider("XP bar height", 0, 48,
+            function() return ns.ABNumber("abXpH") end,
+            function(v) ns.SetABNumber("abXpH", v) end,
+            { wheel = 1, fmt = function(v) return v == 0 and "game's own" or (v .. " px") end,
+              tip = "Thickness of the experience bar in pixels, at the 100% action bar size. 0 leaves the game's own thickness." })
+        p:Slider("XP bar left / right", -600, 600,
+            function() return ns.ABNumber("abXpX") end,
+            function(v) ns.SetABNumber("abXpX", v) end,
+            { wheel = 1, tip = "Nudges the experience bar sideways from the middle of the screen. With the bar under the action bars, the whole stack moves." })
+        p:Slider("XP bar up / down", -100, 600,
+            function() return ns.ABNumber("abXpY") end,
+            function(v) ns.SetABNumber("abXpY", v) end,
+            { wheel = 1, tip = "Nudges the experience bar up from the bottom of the screen. 0 leaves it where the game put it, unless it is under the action bars." })
     end
     p:Section("Cooldowns")
     p:Check("Show numbers on cooldowns",
@@ -442,11 +471,24 @@ local function BuildMorePage()
             function(v) ns.SetJHOption("jhCount", math.floor(v + 0.5)) end,
             { tip = "How many of the cheapest stacks get a red border while every bag slot is taken. Items with no vendor price are never picked." })
     end
-    if ns.Enabled("movers") then
-        p:Section("Bags")
-        p:Buttons({ { text = "Reset bag position", w = 170, click = function() ns.ResetBags() end,
-            tip = "Puts your bag back where Blizzard opens it." } })
-        p:Note("Press B and drag the bag by an empty part of it. It opens where you left it, even after you log out.", 3)
+    do
+        local ok, mode = pcall(GetCVar, "combinedBags")
+        local canCombine = ok and (mode == "0" or mode == "1")
+        if canCombine or ns.Enabled("movers") then p:Section("Bags") end
+        if canCombine then
+            p:Check("Combine bags into one window",
+                function()
+                    local good, value = pcall(GetCVar, "combinedBags")
+                    return good and value == "1"
+                end,
+                function(v) pcall(SetCVar, "combinedBags", v and "1" or "0") end,
+                "One bag window for everything you carry, instead of a separate window per bag. This is the game's own switch, the same as right-clicking a bag. Close and reopen your bags if they are already open.")
+        end
+        if ns.Enabled("movers") then
+            p:Buttons({ { text = "Reset bag position", w = 170, click = function() ns.ResetBags() end,
+                tip = "Puts your bag back where Blizzard opens it." } })
+            p:Note("Press B and drag the bag by an empty part of it. It opens where you left it, even after you log out.", 3)
+        end
     end
     p:Section("Alignment grid")
     p:Buttons({ { text = "Toggle grid", w = 130, click = function() ns.ToggleGrid() end,

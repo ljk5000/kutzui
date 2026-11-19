@@ -282,10 +282,12 @@ function UnitXP() return XP end
 function UnitXPMax() return XPMAX end
 RESTED = nil
 function GetXPExhaustion() return RESTED end
+StatusTrackingBarManager = new("Frame", "StatusTrackingBarManager")
+StatusTrackingBarManager._scale = 1
 StatusTrackingBarInfo = { BarsEnum = { Reputation = 1, Experience = 4 } }
 XPBAR = new("Frame", "FakeXpBar"); XPBAR.OverlayFrame = new("Frame"); XPBAR.OverlayFrame.Text = new("FontString")
 REPBAR = new("Frame", "FakeRepBar"); REPBAR._shown = false
-StatusTrackingBarManager = { barContainers = { { bars = { [1] = REPBAR, [4] = XPBAR } } } }
+StatusTrackingBarManager.barContainers = { { bars = { [1] = REPBAR, [4] = XPBAR } } }
 MAPCUR, MAPPLAYER = { 0.5, 0.5 }, true
 WorldMapFrame = new("Frame", "WorldMapFrame")
 WorldMapFrame.GetMapID = function() return 947 end
@@ -2084,6 +2086,12 @@ do
     if MainActionBar._scale ~= 1 then problem("action bar size: touched at 100%") end
     ns.SetABScaleAll(150); settle()
     if math.abs(MainActionBar._scale - 1.5) > 0.001 or math.abs(MultiBarBottomLeft._scale - 1.5) > 0.001 then problem("action bar size: 'all bars' was not applied") end
+    if math.abs(StatusTrackingBarManager._scale - 1) > 0.001 then problem("xp bar: action bar size changed the experience bar scale") end
+    if XPBAR._h ~= 20 then problem("xp bar: height changed without being asked (" .. tostring(XPBAR._h) .. ")") end
+    ns.SetABOption("abXpGrow", true); settle()
+    if math.abs(XPBAR._h - 30) > 0.001 then problem("xp bar: height did not follow the main bar (" .. tostring(XPBAR._h) .. ")") end
+    if StatusTrackingBarManager:GetNumPoints() ~= 0 then problem("xp bar: height-follow moved the bar") end
+    ns.SetABOption("abXpGrow", false); settle()
     ns.SetABScaleBar("MainActionBar", 80); settle()
     if math.abs(MainActionBar._scale - 0.8) > 0.001 then problem("action bar size: one bar's own size was not applied") end
     if math.abs(MultiBarBottomLeft._scale - 1.5) > 0.001 then problem("action bar size: another bar changed with it") end
@@ -2093,6 +2101,13 @@ do
     if math.abs(MainActionBar._scale - 1) > 0.001 then problem("action bar size: reset did not restore the size") end
     if math.abs(MultiBarBottomLeft._scale - 2) > 0.001 then problem("action bar size: reset did not restore Blizzard's own scale") end
     MultiBarBottomLeft._scale = 1; settle()
+    ns.SetABOption("abXpBelow", true); settle()
+    local point, rel = StatusTrackingBarManager:GetPoint(1)
+    if point ~= "BOTTOM" or rel ~= UIParent then problem("xp bar: under the bars did not sit on the bottom (" .. tostring(point) .. ")") end
+    local _, _, _, _, barY = MainActionBar:GetPoint(1)
+    local _, _, _, _, xpY = StatusTrackingBarManager:GetPoint(1)
+    if not barY or not xpY or barY <= xpY then problem("xp bar: the main bar is not above the experience bar") end
+    ns.SetABOption("abXpBelow", false); ns.ResetABSettings(); settle()
 end
 
 -- action bar extras: page arrows hidden and locked, end caps optional

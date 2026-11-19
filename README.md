@@ -129,7 +129,8 @@ plate, distance, overlap or stack).
 
 Module `actionbars`. Experience numbers and percent on the XP bar, including rested XP. Hide the
 page number and arrows, hide the gryphon end caps, or lock paging so the page keys do nothing.
-Stance, vehicle, and possess bars still change. Size sliders.
+Stance, vehicle, and possess bars still change. Size sliders. The experience bar has its own
+width, height, and position, can sit under the action bars, and can grow taller with them.
 
 Module `keybinds`, separate switch. Action-button labels use `M4` and `M5` instead of the
 spelled-out mouse-button names. The Action bars page can also turn on Blizzard's cooldown numbers.
@@ -363,7 +364,9 @@ every loaded addon, not only KutzUI.
   one chat line (`/kutz mon alert off` stops that).
 - Blocked (tainted) actions: `ADDON_ACTION_BLOCKED` and `ADDON_ACTION_FORBIDDEN`.
 - How long each frame took, and every hitch of 100 ms or more.
-- Memory now, and how fast each addon is growing, from the log Core already keeps.
+- Memory now, and how fast each addon is growing, from the log Core already keeps. Growth compares
+  the lowest reading after garbage collection in each half of the session, so it needs about 40
+  minutes of notes.
 - CPU per addon, only while the game's script profiler is on (`/kutz mon cpu on`).
 
 `/kutz mon` opens the report: a ranked list of what is worth fixing, then one row per addon, then
