@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "runtime.version": "Lua 5.1",
+  "workspace.library": [
+    "${env:WOW_API_ANNOTATIONS}/Core",
+    "${env:WOW_API_ANNOTATIONS}/FrameXML"
+  ],
+  "workspace.ignoreDir": ["/.git", "/tools", "/docs", "/export"],
+  "diagnostics.globals": [
+    "CurveConstants", "GameTooltip_SetDefaultAnchor", "GetUnitName", "LoadAddOn", "MerchantFrame",
+    "PlayerFrame_UpdateStatus", "ColorPickerFrame", "FACTION_BAR_COLORS", "RAID_CLASS_COLORS", "RegisterUnitWatch",
+    "ReloadUI", "STANDARD_TEXT_FONT", "SlashCmdList", "StaticPopup_Hide", "TooltipUtil", "UnregisterUnitWatch",
+    "FakePlayerArt", "FakeTargetArt", "KutzCopyChatFrame", "KutzFpsReadout", "KutzLayoutPanel",
+    "KutzMeterSwapButton", "KutzPlayerCastBar", "KutzTargetCastBar", "KutzToTFrame"
+  ]
+}

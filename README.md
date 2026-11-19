@@ -430,6 +430,13 @@ that tool. Without it, the step is skipped.
 **Textures.** `python -I tools/make_textures.py KutzUI/Media/Textures` regenerates the cast-bar
 textures and corner masks. They are original.
 
+**Editor diagnostics (optional).** `.luarc.json` sets up [lua-language-server](https://luals.github.io)
+for Lua 5.1 with the WoW API annotations from [Ketho/vscode-wow-api](https://github.com/Ketho/vscode-wow-api).
+Clone that repository anywhere and set the `WOW_API_ANNOTATIONS` environment variable to its
+`Annotations` folder. Names the annotations don't cover (older APIs this client still has, and frames
+the addons create by name) are listed under `diagnostics.globals`. Add to that list rather than
+switching the check off.
+
 **A release.** KutzUI_Options and KutzUI_Monitor share KutzUI's `## Version`. CI does not create
 tags.
 
