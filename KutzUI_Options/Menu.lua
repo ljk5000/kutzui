@@ -45,6 +45,14 @@ local GREY   = { 0.62, 0.65, 0.72 }
 local WHITE  = { 1.00, 1.00, 1.00 }
 local EDGE   = { 0.17, 0.18, 0.24 }       -- thin borders and divider lines
 local DIM    = { 0.45, 0.47, 0.52 }       -- text of things that are switched off
+local NAV    = { 0.86, 0.88, 0.93 }
+
+-- Icons reinforce familiar actions; the wording stays on ordinary buttons.
+local ACTION_ICONS = {
+    ["Close"] = "x", ["Toggle grid"] = "grid-2x2", ["Reload UI"] = "rotate-cw",
+    ["Save as"] = "save", ["Create export text"] = "upload", ["Import as profile"] = "download",
+    ["<"] = "chevron-left", [">"] = "chevron-right", ["-"] = "minus", ["+"] = "plus",
+}
 
 local function Text(parent, size, justify, color)
     local fs = parent:CreateFontString(nil, "OVERLAY")
@@ -74,6 +82,18 @@ local function Btn(parent, label, w, h, onClick)
     b.text = Text(b, 12, "CENTER")
     b.text:SetPoint("CENTER")
     b.text:SetText(label)
+    local name = ACTION_ICONS[label]
+    if name then
+        b.icon = ns.CreateIcon(b, name, 16)
+        if label == "<" or label == ">" or label == "-" or label == "+" then
+            b.text:Hide()
+            b.icon:SetPoint("CENTER")
+        else
+            b.text:ClearAllPoints()
+            b.text:SetPoint("CENTER", 11, 0)
+            b.icon:SetPoint("RIGHT", b.text, "LEFT", -6, 0)
+        end
+    end
     b:SetScript("OnClick", onClick)
     return b
 end
@@ -377,6 +397,7 @@ function Page:Slider(label, lo, hi, get, set, opts)
     minus:SetPoint("TOPLEFT", x, y - 22)
     local plus = Btn(f, "+", 22, 20, function() onChange(s:GetValue() + (opts.step or 1)) end)
     plus:SetPoint("TOPLEFT", x + w - 22, y - 22)
+    Tip(minus, "Decrease " .. label); Tip(plus, "Increase " .. label)
 
     Tip(s, opts.tip and (opts.tip .. "  (Click the number to type a value.)") or "Click the number to type a value.")
     self.refreshers[#self.refreshers + 1] = function()
@@ -496,7 +517,7 @@ function Page:Cycler(label, items, getKey, setKey, opts)
     prev:SetPoint("TOPLEFT", x + w - 56, y - 14)
     local nxt = Btn(f, ">", 26, 22, function() Step(1) end)
     nxt:SetPoint("TOPLEFT", x + w - 26, y - 14)
-    Tip(prev, opts.tip); Tip(nxt, opts.tip)
+    Tip(prev, opts.tip or ("Previous " .. label)); Tip(nxt, opts.tip or ("Next " .. label))
 
     local height = 46
     if opts.makePreview then
@@ -643,14 +664,22 @@ local currentTab
 -- which module a page belongs to (its sidebar label dims when that module is switched off)
 local TAB_MODULE = { frames = "frames", cast = "castbars", combat = "combatlog", chat = "chat",
     windows = "windows", actionbars = "actionbars", minimap = "minimap", damagemeter = "damagemeter", fps = "fpsreadout", tooltipplace = "movers", convenience = "convenience", nameplates = "nameplates", party = "partytargets" }
+local TAB_ICONS = {
+    package = "package", profiles = "user-round", modules = "sliders-horizontal",
+    frames = "user-round", cast = "wand-sparkles", party = "users", nameplates = "panel-top",
+    combat = "scroll-text", damagemeter = "chart-no-axes-combined", fonts = "type",
+    chat = "messages-square", windows = "panels-top-left", actionbars = "grid-2x2",
+    minimap = "compass", tooltipplace = "mouse-pointer-2", more = "backpack", fps = "gauge",
+    convenience = "sparkles", gamesettings = "settings-2", gamesettings2 = "volume-2",
+}
 
 local function TabTextColor(key, on)
     local b = tabButtons[key]
     if not b then return end
     local mod = TAB_MODULE[key]
-    if on then b.text:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-    elseif mod and not ns.Enabled(mod) then b.text:SetTextColor(DIM[1], DIM[2], DIM[3])
-    else b.text:SetTextColor(0.86, 0.88, 0.93) end
+    local color = on and GOLD or (mod and not ns.Enabled(mod) and DIM) or NAV
+    b.text:SetTextColor(color[1], color[2], color[3])
+    if b.icon then b.icon:SetVertexColor(color[1], color[2], color[3]) end
 end
 
 local function ShowTab(key)
@@ -698,8 +727,12 @@ local function AddTab(key, label)
     b.selected = Fill(b, "ARTWORK", GOLD[1], GOLD[2], GOLD[3], 1)
     b.selected:SetPoint("TOPLEFT"); b.selected:SetPoint("BOTTOMLEFT"); b.selected:SetWidth(3)
     b.selected:Hide()
+    b.icon = ns.CreateIcon(b, TAB_ICONS[key], 16)
+    b.icon:SetPoint("LEFT", b, "LEFT", 18, 0)
     b.text = Text(b, 13, "LEFT")
-    b.text:SetPoint("LEFT", 18, 0)
+    b.text:SetPoint("LEFT", 42, 0)
+    b.text:SetPoint("RIGHT", -10, 0)
+    b.text:SetWordWrap(false)
     b.text:SetText(label)
     b:SetScript("OnClick", function() ShowTab(key) end)
     tabButtons[key] = b

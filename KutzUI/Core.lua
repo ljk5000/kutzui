@@ -55,6 +55,8 @@ ns.MODULES = {
       desc = "Turn on Blizzard's damage meter (in your font) and switch between it and the combat log." },
     { key = "fpsreadout", name = "FPS and latency readout",
       desc = "One tiny line of text in a corner with your frame rate and latency." },
+    { key = "mutebutton", name = "Mute button",
+      desc = "A bottom-left button that appears on hover and mutes or unmutes game sound." },
     { key = "partytargets", name = "Party targets",
       desc = "Beside each party frame, a small bar for what that member is targeting, and one for what that target is targeting." },
     { key = "nameplates", name = "Nameplates",

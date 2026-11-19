@@ -7,6 +7,7 @@
 
 Core.lua
 Common.lua
+Icons.lua
 Profiles.lua
 UnitText.lua
 UnitBars.lua
@@ -25,6 +26,7 @@ TooltipExtras.lua
 TooltipCompare.lua
 DamageMeter.lua
 FpsReadout.lua
+MuteButton.lua
 Convenience.lua
 CraftingTime.lua
 SubCraft.lua

@@ -227,6 +227,12 @@ Module `fpsreadout`. One small line, like `144 fps  38 ms`, with no background a
 target. The latency is the world latency. Default place is the top-left corner. Top-centre, or
 just left of the minimap, or an X / Y offset.
 
+### Mute button
+
+Module `mutebutton`. Hover over the bottom-left corner to reveal a speaker button. Click it to
+switch all game sound off or on; your volume levels and other sound settings are kept. A gold
+crossed speaker means muted. The button hides again when the mouse leaves.
+
 ### Crafting
 
 Module `craftingtime`. Under the profession window, an estimate of how long Create and Create All
@@ -280,6 +286,8 @@ These are not in the module list. They load with KutzUI.
 - `Grid` is the alignment grid (`/kutz grid`). It is off each time you log in, draws nothing
   until you ask, and never takes mouse clicks.
 - `Common` is shared helpers (fonts, bar textures, text).
+- `Icons` is the shared Lucide icon atlas used by the settings window, the copy-chat controls and
+  the mute button. Text labels and tooltips stay alongside the icons.
 
 ## Slash commands
 
@@ -342,7 +350,7 @@ Also outside that file:
 
 | What | Where | When |
 | --- | --- | --- |
-| Game settings you change on KutzUI's pages, plus the damage meter, minimap coordinates, and the low-health flash | The game's own settings | Only when you flip that switch |
+| Game settings you change on KutzUI's pages, plus the damage meter, minimap coordinates, the low-health flash, and all sound (`Sound_EnableAllSound`) | The game's own settings | Only when you flip that switch or click the mute button |
 | Blizzard's combat-log filters | `SavedVariables\Blizzard_CombatLog.lua` | Only when you apply a combat-log preset |
 | Screenshots | The game's `Screenshots` folder | Only with the achievement or level-up switch on |
 

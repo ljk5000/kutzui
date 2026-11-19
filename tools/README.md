@@ -35,6 +35,10 @@ at it (Node 22+). Without `TAINTLINT_DIR` the step is skipped.
 
 `python -I make_textures.py ../KutzUI/Media/Textures` regenerates the cast bar textures and masks.
 
+The selected Lucide icons are pinned in `lucide/manifest.json` and rendered to a single TGA atlas.
+See [lucide/README.md](lucide/README.md) for regeneration. No icon library or renderer is needed by
+the installed addon, and no new npm dependency is added to these checks.
+
 ## Release zips
 
     node check_release_zip.js <zip> kutzui [version] [--licensed]   # a zip, as if extracted alone into an empty AddOns folder
