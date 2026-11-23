@@ -3,7 +3,7 @@
 ## Notes: The /kutz settings window for Kutz UI. Loads only when you open it.
 ## X-Category: KutzUI
 ## Author: ljk5000
-## Version: 0.43.0
+## Version: 0.44.0
 ## Dependencies: KutzUI
 ## LoadOnDemand: 1
 

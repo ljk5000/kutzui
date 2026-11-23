@@ -2,7 +2,7 @@
 ## Title: KutzUI - Addon Monitor
 ## Notes: Optional diagnostics for KutzUI. Disable independently in the AddOns menu. Settings remain in KutzUIDB.
 ## Author: ljk5000
-## Version: 0.43.0
+## Version: 0.44.0
 ## Dependencies: KutzUI
 ## X-Category: KutzUI
 

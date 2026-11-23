@@ -2,7 +2,7 @@
 ## Title: KutzUI
 ## Notes: Health/power text, mirrored player/target layout, cast bars with icon and spell name, a game-wide font, a readable combat log, short color-coded chat tags, Enter-opens-main-chat, and one settings window (/kutz).
 ## Author: ljk5000
-## Version: 0.43.0
+## Version: 0.44.0
 ## SavedVariables: KutzUIDB
 
 Core.lua
